@@ -188,9 +188,30 @@ fn main() -> Result<(), Error> {
             }
 
             OSType::Unknown => {
-                terminal.print_warning(
-                    "Could not detect your Linux distribution. Do you have lsb-release installed?",
-                );
+                let mut show_warning = 1;
+                if let Ok(sudo) = &sudo {
+                    if let Ok(_emerge) = which("emerge") {
+                    show_warning = 0;
+                    Command::new(&sudo)
+                        .args(&["emerge", "-q", "--sync"])
+                        .spawn()?
+                        .wait()?
+                        .check()
+                        .and_then(|()| {
+                            Command::new(&sudo)
+                                .args(&["emerge", "-aquDN", "@world"])
+                                .spawn()?
+                                .wait()
+                                .map_err(Error::from)
+                        })?
+                        .report("System upgrade", &mut reports);;
+                    }
+                }
+                if show_warning == 1 {
+                    terminal.print_warning(
+                        "Could not detect your Linux distribution. Do you have lsb-release installed?",
+                    );
+                }
             }
 
             _ => (),
